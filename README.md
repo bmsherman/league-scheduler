@@ -1,4 +1,4 @@
-League scheduling software
+League scheduler
 ==========================
 
 Create schedules for weekly leagues where games consist of head-to-head
@@ -71,4 +71,4 @@ Player 3	vs.	Player 5
 Player 4	vs.	Player 1
 Player 5	vs.	Player 3
 Player 6	vs.	Bye
-``
+```
