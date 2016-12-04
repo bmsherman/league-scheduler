@@ -1,16 +1,27 @@
 module Schedule where
 import Control.Monad (forM_, forM, when)
 import Data.Function (on)
-import Data.List ((\\), partition, sortBy)
+import Data.List ((\\), partition, sortBy, union, sort)
 import GHC.Exts (sortWith)
 import qualified Data.Map as M
 
 type Week = Int
 
+data Player = Player String [Week]
+  deriving (Eq, Show, Ord)
+
+name :: Player -> String
+name (Player n _) = n
+
+byeRequests :: Player -> [Week]
+byeRequests (Player _ b) = b
+
+{-
 data Player = Player
   { name :: String
   , byeRequests :: [Week]
   } deriving (Eq, Show, Ord)
+-}
 
 data ScheduleParams = ScheduleParams
   { players :: [Player]
@@ -113,6 +124,7 @@ printSchedule s = forM_ [1 .. numWeeks s] $ \w -> do
 data Game = 
     Bye Week String
   | Game Week String String
+  deriving (Show)
 
 existingSchedule :: [Player] -> [Game] -> Schedule
 existingSchedule ps gs = foldr (.) id [ addGame g | g <- gs ] $ emptySchedule
@@ -131,3 +143,46 @@ existingSchedule ps gs = foldr (.) id [ addGame g | g <- gs ] $ emptySchedule
   addGame (Game w p1 p2) = let p1' = get p1 in let p2' = get p2 in 
     update w p1' (Just p2') . update w p2' (Just p1')
 
+filterScheduleForPlayers :: [Player] -> Schedule -> Schedule
+filterScheduleForPlayers ps s = 
+  s { scheduleMap = M.filterWithKey (\(w, p) _ -> p `elem` ps) 
+      (scheduleMap s) }
+
+toGameList :: Schedule -> [Game]
+toGameList s = reverse (f (scheduleMap s) []) where 
+  f :: ScheduleMap -> [Game] -> [Game]
+  f sm gs = case M.minViewWithKey sm of
+    Nothing -> gs
+    Just (((w,p), op), sm') -> case op of
+      Just p' -> f (M.delete (w, p') sm')
+        (Game w (name p) (name p') : gs)
+      Nothing -> f sm' (Bye w (name p) : gs)
+
+updatePlayerByes :: Schedule -> [Player] -> [Player]
+updatePlayerByes s ps = map f ps where
+  f :: Player -> Player
+  f p = Player (name p) (sort (byeRequests p `union` x))
+    where
+    x :: [Week]
+    x = map fst . M.keys . M.filterWithKey g $ scheduleMap s
+    g (w, p') Nothing = p == p'
+    g _ (Just _) = False
+
+printScheduleCode :: [Player] -> Schedule -> IO ()
+printScheduleCode ps s = do
+  putStrLn "Players and their byes:"
+  putStrLn "----"
+  printList ps'
+  putStrLn ""
+  putStrLn "Schedule"
+  putStrLn "----"
+  printList gs
+  where
+  ps' = updatePlayerByes s ps
+  gs = toGameList (filterScheduleForPlayers ps s)
+  printList :: Show a => [a] -> IO ()
+  printList xs = putStr "  [ " >> go xs
+  go :: Show a => [a] -> IO ()
+  go [] = putStrLn "]"
+  go [x] = putStrLn (show x) >> putStrLn "  ]"
+  go (x : xs) = putStrLn (show x) >> putStr "  , " >> go xs

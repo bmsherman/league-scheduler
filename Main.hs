@@ -43,5 +43,9 @@ schedParams = ScheduleParams
 -- This program creates the partial schedule from the list of games we
 -- provided, then fills out the rest of the schedule, and prints it.
 main :: IO ()
-main = printSchedule . fillSchedule schedParams $ 
-  existingSchedule lplayers lgames
+main = do
+  printSchedule s
+  putStrLn "" >> putStrLn ""
+  printScheduleCode lplayers s
+  where 
+  s = fillSchedule schedParams (existingSchedule lplayers lgames)
